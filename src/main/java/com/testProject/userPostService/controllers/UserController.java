@@ -1,16 +1,19 @@
 package com.testProject.userPostService.controllers;
 
 
+import com.testProject.userPostService.controllers.dto.PostDto;
 import com.testProject.userPostService.controllers.dto.UserDto;
 import com.testProject.userPostService.controllers.exception.CustomExceptionHandler;
-import com.testProject.userPostService.controllers.exception.InvalidIdException;
-import com.testProject.userPostService.controllers.exception.InvalidUserException;
-import com.testProject.userPostService.entity.User;
+
 import com.testProject.userPostService.service.UserService;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.sql.Timestamp;
 import java.util.List;
 
 
@@ -21,54 +24,55 @@ public class UserController {
 
     private final UserService userServiceImpl;
 
+
     @GetMapping("/users")
     public ResponseEntity<List<UserDto>> getAllUsers() {
-        List<User> userList = userServiceImpl.getAllUsers();
+        List<UserDto> userList = userServiceImpl.getAllUsers();
 
-        if (userList == null || userList.isEmpty()) {
-            throw new RuntimeException("No users found");
-        }
-
-        List<UserDto> userDtoList = userList.stream()
-                .map(user -> new UserDto(user.getId(), user.getName(), user.getEmail()))
-                .toList();
-
-        return ResponseEntity.ok().body(userDtoList);
+        return ResponseEntity.ok().body(userList);
     }
 
     @GetMapping("/users/{id}")
-    public ResponseEntity<UserDto> getUserById(@PathVariable Long id) {
-        if (id == null) {
-            throw new InvalidIdException("ID cannot be null");
-        }
+    public ResponseEntity<UserDto> getUserById(@PathVariable @NotNull @Min(0) Long id) {
+        UserDto user = userServiceImpl.getUserById(id);
 
-        User user = userServiceImpl.getUserById(id);
-
-        if (user == null) {
-            throw new InvalidIdException("User not found");
-        }
-
-        return ResponseEntity.ok().body(new UserDto(user.getId(), user.getName(), user.getEmail()));
+        return ResponseEntity.ok().body(user);
     }
 
     @PostMapping("/createuser")
-    public ResponseEntity<UserDto> createUser(@RequestBody User user) {
-        if (user == null) {
-            throw new InvalidUserException("User cannot be null");
-        }
+    public ResponseEntity<UserDto> createUser(@RequestBody @NotNull UserDto user) {
+        UserDto createdUser = userServiceImpl.createUser(user);
 
-        User createdUser = userServiceImpl.createUser(user);
-
-        return ResponseEntity.ok().body(new UserDto(createdUser.getId(), createdUser.getName(), createdUser.getEmail()));
+        return ResponseEntity.ok().body(createdUser);
     }
 
     @DeleteMapping("/deleteuser/{id}")
-    public void deleteUser(@PathVariable Long id) {
-        if (id == null) {
-            throw new InvalidIdException("ID cannot be null");
-        }
-
+    public void deleteUser(@PathVariable @NotNull @Min(0) Long id) {
         userServiceImpl.deleteUser(id);
+    }
+
+
+    @PutMapping("/update/{id}")
+    public ResponseEntity<UserDto> updateUser(@PathVariable @NotNull @Min(0) Long id, @RequestBody @Valid @NotNull UserDto userDetails) {
+        UserDto updatedUser = userServiceImpl.updateUser(id, userDetails);
+
+        return ResponseEntity.ok()
+                .body(updatedUser);
+    }
+
+
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<PostDto>> getPostsByUserId(@PathVariable @NotNull @Min(0) Long userId) {
+        List<PostDto> posts = userServiceImpl.getAllPostsByUserId(userId);
+        return ResponseEntity.ok(posts);
+    }
+
+    @GetMapping("/user/{userId}/time-range")
+    public ResponseEntity<List<PostDto>> getPostsByUserIdAndTimeRange(@PathVariable @NotNull @Min(0) Long userId,
+                                                                      @RequestParam Timestamp startTime,
+                                                                      @RequestParam Timestamp endTime) {
+        List<PostDto> posts = userServiceImpl.getAllPostsByUserIdAndTimeRange(userId, startTime, endTime);
+        return ResponseEntity.ok(posts);
     }
 
 }

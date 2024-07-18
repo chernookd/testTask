@@ -1,81 +1,160 @@
 package com.testProject.userPostService.controllers;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.testProject.userPostService.controllers.dto.PostDto;
 import com.testProject.userPostService.controllers.dto.UserDto;
-import com.testProject.userPostService.controllers.exception.InvalidIdException;
 import com.testProject.userPostService.controllers.exception.InvalidUserException;
-import com.testProject.userPostService.entity.User;
 import com.testProject.userPostService.service.UserService;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
 
+import java.sql.Timestamp;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+@SpringBootTest
+@AutoConfigureMockMvc
 public class UserControllerTest {
 
-    @InjectMocks
-    private UserController userController;
+    @Autowired
+    private MockMvc mockMvc;
 
-    @Mock
+    @MockBean
     private UserService userService;
 
-    @BeforeEach
-    public void setUp() {
-        MockitoAnnotations.openMocks(this);
-    }
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Test
-    public void testGetAllUsers() {
-        List<User> users = Arrays.asList(new User(1L, "Name", "email@example.com"));
+    void testGetAllUsers() throws Exception {
+        List<UserDto> users = Arrays.asList(new UserDto(1L, "User1", "user1@example.com", Collections.emptyList()));
         when(userService.getAllUsers()).thenReturn(users);
 
-        ResponseEntity<List<UserDto>> response = userController.getAllUsers();
-        assertEquals(200, response.getStatusCodeValue());
-        assertEquals(1, response.getBody().size());
+        mockMvc.perform(get("/users"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(1L))
+                .andExpect(jsonPath("$[0].name").value("User1"))
+                .andExpect(jsonPath("$[0].email").value("user1@example.com"));
+
+        verify(userService).getAllUsers();
     }
 
     @Test
-    public void testGetUserById() {
-        User user = new User(1L, "Name", "email@example.com");
+    void testGetUserById() throws Exception {
+        UserDto user = new UserDto(1L, "User1", "user1@example.com", Collections.emptyList());
         when(userService.getUserById(1L)).thenReturn(user);
 
-        ResponseEntity<UserDto> response = userController.getUserById(1L);
-        assertEquals(200, response.getStatusCodeValue());
-        assertEquals("Name", response.getBody().getName());
+        mockMvc.perform(get("/users/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1L))
+                .andExpect(jsonPath("$.name").value("User1"))
+                .andExpect(jsonPath("$.email").value("user1@example.com"));
+
+        verify(userService).getUserById(1L);
     }
 
     @Test
-    public void testGetUserById_InvalidId() {
-        assertThrows(InvalidIdException.class, () -> userController.getUserById(null));
+    void testGetUserById_NotFound() throws Exception {
+        when(userService.getUserById(1L)).thenThrow(new InvalidUserException("User not found"));
+
+        mockMvc.perform(get("/users/1"))
+                .andExpect(status().isBadRequest());
+
+        verify(userService).getUserById(1L);
     }
 
     @Test
-    public void testCreateUser() {
-        User user = new User(1L, "Name", "email@example.com");
-        when(userService.createUser(user)).thenReturn(user);
+    void testCreateUser() throws Exception {
+        UserDto newUser = new UserDto(null, "New User", "newuser@example.com", Collections.emptyList());
+        UserDto createdUser = new UserDto(1L, "New User", "newuser@example.com", Collections.emptyList());
 
-        ResponseEntity<UserDto> response = userController.createUser(user);
-        assertEquals(200, response.getStatusCodeValue());
-        assertEquals("Name", response.getBody().getName());
+        when(userService.createUser(any(UserDto.class))).thenReturn(createdUser);
+
+        mockMvc.perform(post("/createuser")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(newUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1L))
+                .andExpect(jsonPath("$.name").value("New User"))
+                .andExpect(jsonPath("$.email").value("newuser@example.com"));
+
+        verify(userService).createUser(any(UserDto.class));
+    }
+
+
+    @Test
+    void testDeleteUser() throws Exception {
+        long userId = 1L;
+
+        mockMvc.perform(delete("/deleteuser/{id}", userId))
+                .andExpect(status().isOk());
+
+        verify(userService).deleteUser(userId);
     }
 
     @Test
-    public void testCreateUser_InvalidUser() {
-        assertThrows(InvalidUserException.class, () -> userController.createUser(null));
+    void testUpdateUser() throws Exception {
+        long userId = 1L;
+        UserDto updatedUserDto = new UserDto(userId, "Updated User", "updateduser@example.com", Collections.emptyList());
+
+        when(userService.updateUser(eq(userId), any(UserDto.class))).thenReturn(updatedUserDto);
+
+        mockMvc.perform(put("/update/{id}", userId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updatedUserDto)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(userId))
+                .andExpect(jsonPath("$.name").value("Updated User"))
+                .andExpect(jsonPath("$.email").value("updateduser@example.com"));
+
+        verify(userService).updateUser(eq(userId), any(UserDto.class));
     }
 
     @Test
-    public void testDeleteUser() {
-        doNothing().when(userService).deleteUser(1L);
-        userController.deleteUser(1L);
-        verify(userService, times(1)).deleteUser(1L);
+    void testGetPostsByUserId() throws Exception {
+        long userId = 1L;
+        List<PostDto> posts = Arrays.asList(new PostDto(1L, "Title1", "Content1", new UserDto(), null, null));
+
+        when(userService.getAllPostsByUserId(userId)).thenReturn(posts);
+
+        mockMvc.perform(get("/user/{userId}", userId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(1L))
+                .andExpect(jsonPath("$[0].title").value("Title1"))
+                .andExpect(jsonPath("$[0].content").value("Content1"));
+
+        verify(userService).getAllPostsByUserId(userId);
+    }
+
+    @Test
+    void testGetPostsByUserIdAndTimeRange() throws Exception {
+        long userId = 1L;
+        Timestamp startTime = Timestamp.valueOf("2023-01-01 00:00:00");
+        Timestamp endTime = Timestamp.valueOf("2023-12-31 23:59:59");
+        List<PostDto> posts = Arrays.asList(new PostDto(1L, "Title1", "Content1", new UserDto(), null, null));
+
+        when(userService.getAllPostsByUserIdAndTimeRange(userId, startTime, endTime)).thenReturn(posts);
+
+        mockMvc.perform(get("/user/{userId}/time-range", userId)
+                        .param("startTime", startTime.toString())
+                        .param("endTime", endTime.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(1L))
+                .andExpect(jsonPath("$[0].title").value("Title1"))
+                .andExpect(jsonPath("$[0].content").value("Content1"));
+
+        verify(userService).getAllPostsByUserIdAndTimeRange(userId, startTime, endTime);
     }
 }
+

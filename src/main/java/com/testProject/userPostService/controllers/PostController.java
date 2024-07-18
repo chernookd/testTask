@@ -7,10 +7,15 @@ import com.testProject.userPostService.controllers.exception.InvalidIdException;
 import com.testProject.userPostService.controllers.exception.InvalidPostException;
 import com.testProject.userPostService.entity.Post;
 import com.testProject.userPostService.service.PostService;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.sql.Update;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.sql.Timestamp;
 import java.util.List;
 
 @RestController
@@ -22,55 +27,54 @@ public class PostController {
 
     @GetMapping("/posts")
     public ResponseEntity<List<PostDto>> getAllPosts() {
-        List<Post> postList = postServiceImpl.getAllPosts();
+        List<PostDto> postList = postServiceImpl.getAllPosts();
 
-        if (postList == null || postList.isEmpty()) {
-            throw new RuntimeException("No posts found");
-        }
-
-        List<PostDto> postDtoList = postList.stream()
-                .map(post -> new PostDto(post.getId(), post.getTitle(), post.getContent(), post.getUserId(), post.getCreatedAt(), post.getUpdatedAt()))
-                .toList();
-
-        return ResponseEntity.ok().body(postDtoList);
+        return ResponseEntity.ok().body(postList);
     }
 
     @GetMapping("/posts/{id}")
-    public ResponseEntity<PostDto> getPostById(@PathVariable Long id) {
-        if (id == null) {
-            throw new InvalidIdException("ID cannot be null");
-        }
-
-        Post post = postServiceImpl.getPostById(id);
-
-        if (post == null) {
-            throw new InvalidIdException("Post not found");
-        }
+    public ResponseEntity<PostDto> getPostById(@PathVariable @NotNull @Min(0) Long id) {
+        PostDto post = postServiceImpl.getPostById(id);
 
         return ResponseEntity.ok()
-                .body(new PostDto(post.getId(), post.getTitle(), post.getContent(), post.getUserId(), post.getCreatedAt(), post.getUpdatedAt()));
+                .body(post);
     }
 
-    @PostMapping("/createpost")
-    public ResponseEntity<PostDto> createPost(@RequestBody Post post) {
-        if (post == null) {
-            throw new InvalidPostException("Post cannot be null");
-        }
-
-        Post createdPost = postServiceImpl.createPost(post);
+    @PostMapping("/post/create")
+    public ResponseEntity<PostDto> createPost(@RequestBody @NotNull PostDto post) {
+        PostDto createdPost = postServiceImpl.createPost(post);
 
         return ResponseEntity.ok()
-                .body(new PostDto(createdPost.getId(), createdPost.getTitle(), createdPost.getContent(),
-                        createdPost.getUserId(), createdPost.getCreatedAt(), createdPost.getUpdatedAt()));
+                .body(createdPost);
     }
 
-    @DeleteMapping("/deletepost/{id}")
-    public void deletePost(@PathVariable Long id) {
-        if (id == null) {
-            throw new InvalidIdException("ID cannot be null");
-        }
-
+    @DeleteMapping("/post/delete/{id}")
+    public void deletePost(@PathVariable @NotNull @Min(0) Long id) {
         postServiceImpl.deletePost(id);
+    }
+
+    @GetMapping("/post/{userId}")
+    public ResponseEntity<List<PostDto>> getPostsByUserId(@PathVariable @NotNull @Min(0) Long userId) {
+        List<PostDto> posts = postServiceImpl.getPostsByUserId(userId);
+
+        return ResponseEntity.ok(posts);
+    }
+
+    @GetMapping("/post/{userId}/time-range")
+    public ResponseEntity<List<PostDto>> getPostsByUserIdAndTimeRange(@PathVariable @NotNull @Min(0) Long userId,
+                                                                   @RequestParam Timestamp startTime,
+                                                                   @RequestParam Timestamp endTime) {
+        List<PostDto> posts = postServiceImpl.getPostsByUserIdAndTimeRange(userId, startTime, endTime);
+
+        return ResponseEntity.ok(posts);
+    }
+
+    @PutMapping("/post/update/{id}")
+    public ResponseEntity<PostDto> updatePost(@PathVariable @NotNull @Min(0) Long id, @RequestBody @NotNull @Valid PostDto postDetails) {
+        PostDto updatedPost = postServiceImpl.updatePost(id, postDetails);
+
+        return ResponseEntity.ok()
+                .body(updatedPost);
     }
 
 }
