@@ -16,6 +16,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @RestController
@@ -33,7 +35,7 @@ public class PostController {
     }
 
     @GetMapping("/posts/{id}")
-    public ResponseEntity<PostDto> getPostById(@PathVariable @NotNull @Min(0) Long id) {
+    public ResponseEntity<PostDto> getPostById(@PathVariable @NotNull Long id) {
         PostDto post = postServiceImpl.getPostById(id);
 
         return ResponseEntity.ok()
@@ -62,15 +64,20 @@ public class PostController {
 
     @GetMapping("/post/{userId}/time-range")
     public ResponseEntity<List<PostDto>> getPostsByUserIdAndTimeRange(@PathVariable @NotNull @Min(0) Long userId,
-                                                                   @RequestParam Timestamp startTime,
-                                                                   @RequestParam Timestamp endTime) {
-        List<PostDto> posts = postServiceImpl.getPostsByUserIdAndTimeRange(userId, startTime, endTime);
+                                                                      @RequestParam String startTime,
+                                                                      @RequestParam String endTime) {
+        DateTimeFormatter formatter = DateTimeFormatter.ISO_DATE_TIME;
+        LocalDateTime startDateTime = LocalDateTime.parse(startTime, formatter);
+        LocalDateTime endDateTime = LocalDateTime.parse(endTime, formatter);
+        Timestamp startTimestamp = Timestamp.valueOf(startDateTime);
+        Timestamp endTimestamp = Timestamp.valueOf(endDateTime);
 
+        List<PostDto> posts = postServiceImpl.getPostsByUserIdAndTimeRange(userId, startTimestamp, endTimestamp);
         return ResponseEntity.ok(posts);
     }
 
     @PutMapping("/post/update/{id}")
-    public ResponseEntity<PostDto> updatePost(@PathVariable @NotNull @Min(0) Long id, @RequestBody @NotNull @Valid PostDto postDetails) {
+    public ResponseEntity<PostDto> updatePost(@PathVariable @NotNull @Min(0) Long id, @RequestBody @NotNull PostDto postDetails) {
         PostDto updatedPost = postServiceImpl.updatePost(id, postDetails);
 
         return ResponseEntity.ok()

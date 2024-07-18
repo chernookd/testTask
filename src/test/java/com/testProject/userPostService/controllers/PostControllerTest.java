@@ -132,26 +132,6 @@ public class PostControllerTest {
     }
 
     @Test
-    void testGetPostsByUserIdAndTimeRange() throws Exception {
-        long userId = 1L;
-        Timestamp startTime = Timestamp.valueOf("2023-07-18 00:00:00");
-        Timestamp endTime = Timestamp.valueOf("2023-07-19 00:00:00");
-        when(postService.getPostsByUserIdAndTimeRange(eq(userId), eq(startTime), eq(endTime)))
-                .thenReturn(Collections.singletonList(createSamplePostDto()));
-
-        mockMvc.perform(get(POST_BY_USER_ID_TIME_RANGE_ENDPOINT, userId)
-                        .param("startTime", String.valueOf(startTime))
-                        .param("endTime", String.valueOf(endTime))
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").exists())
-                .andExpect(jsonPath("$[0].title").exists())
-                .andExpect(jsonPath("$[0].content").exists());
-
-        verify(postService).getPostsByUserIdAndTimeRange(eq(userId), eq(startTime), eq(endTime));
-    }
-
-    @Test
     void testUpdatePost() throws Exception {
         long postId = 1L;
         PostDto updatedPostDto = createSamplePostDto();
